@@ -290,7 +290,7 @@ class IterativeFFTParticleReconstruction(OriginalIterativeFFTParticleReconstruct
 
 
 
-class ShiftedRandomsIterativeParticleFFTReconstruction(IterativeFFTReconstruction):
+class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParticleReconstruction):
     """
     Extension of IterativeFFTReconstruction that also moves randoms
     at each iteration to keep data points within survey boundaries.
