@@ -408,7 +408,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
 
             # -- adding shifts to the randoms -- #
             if self.has_randoms:
-                shifts_randoms[:,iaxis] = self.readout(psi, self._positions_rec_randoms[indices])
+                shifts_randoms[:,iaxis] = self._readout(psi, self._positions_rec_randoms[indices])
 
             if return_psi: psis.append(psi)
             del psi
