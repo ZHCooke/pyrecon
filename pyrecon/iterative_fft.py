@@ -1,8 +1,7 @@
 """Implementation of Burden et al. 2015 (https://arxiv.org/abs/1504.02591) algorithm."""
 
-from .recon import BaseReconstruction
+from .recon import BaseReconstruction, format_positions_wrapper, format_positions_weights_wrapper
 from . import utils
-
 
 class IterativeFFTReconstruction(BaseReconstruction):
     """
