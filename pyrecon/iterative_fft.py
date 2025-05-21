@@ -25,8 +25,8 @@ class IterativeFFTReconstruction(BaseReconstruction):
             self._positions_data = positions  # Store positions here!
             self._weights_data = weights
         else:
-            self._positions_data = np.concatenate([self._positions_data, positions], axis=0])
-            self._weights_data = np.concatenate([self._weights_data, weights], axis=0])
+            self._positions_data = np.concatenate([self._positions_data, positions], axis=0)
+            self._weights_data = np.concatenate([self._weights_data, weights], axis=0)
 
         self._paint(positions, weights=weights, out=self.mesh_data)
 
