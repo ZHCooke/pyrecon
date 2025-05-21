@@ -340,7 +340,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
 
         if self.has_randoms:
             self.mesh_randoms = self._smooth_gaussian(self.mesh_randoms)
-            self._positions_rec_randoms = self.positions_randoms.copy()
+            self._positions_rec_randoms = self._randoms_data.copy()
             self._compute_random_indices()
 
 

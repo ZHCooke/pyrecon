@@ -12,6 +12,25 @@ class IterativeFFTReconstruction(BaseReconstruction):
     _f_z = True
     _bias_z = True
 
+    @format_positions_weights_wrapper
+    def assign_data(self, positions, weights=None, **kwargs):
+        """
+        Assign (paint) data to :attr:`mesh_data` and store positions for later use.
+        """
+        if weights is None:
+            weights = np.ones_like(positions, shape=(len(positions),))
+
+        if getattr(self, 'mesh_data', None) is None:
+            self.mesh_data = self.pm.create(type='real', value=0.)
+            self._positions_data = positions  # Store positions here!
+            self._weights_data = weights
+        else:
+            self._positions_data = np.concatenate([self._positions_data, positions], axis=0])
+            self._weights_data = np.concatenate([self._weights_data, weights], axis=0])
+
+        self._paint(positions, weights=weights, out=self.mesh_data)
+
+
     def run(self, niterations=3):
         """
         Run reconstruction, i.e. compute Zeldovich displacement fields :attr:`mesh_psi`.
