@@ -2,6 +2,7 @@
 
 from .recon import BaseReconstruction, format_positions_wrapper, format_positions_weights_wrapper
 from . import utils
+import numpy as np
 
 class IterativeFFTReconstruction(BaseReconstruction):
     """

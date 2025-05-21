@@ -322,7 +322,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
         This ensures that the random permutation is calculated once per reconstruction run.
         """
         if self.has_randoms:
-            self._random_indices = np.random.permutation(len(self._positions_randoms))
+            self._random_indices = np.random.permutation(len(self._randoms_data))
 
 
     def run(self, niterations=3):
