@@ -297,21 +297,21 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
     """
 
     def assign_randoms(self, positions, weights=None, replace=False, **kwargs):
-    if weights is None:
+        if weights is None:
 
-        weights = np.ones_like(positions, shape=(len(positions),))
+            weights = np.ones_like(positions, shape=(len(positions),))
 
-    if getattr(self, 'mesh_randoms', None) is None or replace:
-        self.mesh_randoms = self.pm.create(type='real', value=0.)
-        self._randoms_data = positions.copy()
-        self._weights_randoms = weights.copy()
-        self._size_randoms = len(positions)
-    else:
-        self._randoms_data = np.concatenate([self._randoms_data, positions], axis=0)
-        self._weights_randoms = np.concatenate([self._weights_randoms, weights], axis=0)
-    # You can use kwargs or simply ignore them if they're not needed
-    self._paint(positions, weights=weights, out=self.mesh_randoms)
-    self._size_randoms += self.mpicomm.allreduce(len(positions))
+        if getattr(self, 'mesh_randoms', None) is None or replace:
+            self.mesh_randoms = self.pm.create(type='real', value=0.)
+            self._randoms_data = positions.copy()
+            self._weights_randoms = weights.copy()
+            self._size_randoms = len(positions)
+        else:
+            self._randoms_data = np.concatenate([self._randoms_data, positions], axis=0)
+            self._weights_randoms = np.concatenate([self._weights_randoms, weights], axis=0)
+        # You can use kwargs or simply ignore them if they're not needed
+        self._paint(positions, weights=weights, out=self.mesh_randoms)
+        self._size_randoms += self.mpicomm.allreduce(len(positions))
 
 
 
