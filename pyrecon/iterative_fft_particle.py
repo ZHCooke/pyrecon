@@ -296,24 +296,23 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
     at each iteration to keep data points within survey boundaries.
     """
 
-    def assign_randoms(self, positions, weights=None, **kwargs):
-        """Same as :meth:`assign_data`, but for random objects, while tracking them across function calls."""
+    def assign_randoms(self, positions, weights=None, replace=False, **kwargs):
+    if weights is None:
 
-        if weights is None:
-            weights = np.ones_like(positions, shape=(len(positions),))
+        weights = np.ones_like(positions, shape=(len(positions),))
 
-        if getattr(self, 'mesh_randoms', None) is None:
-            self.mesh_randoms = self.pm.create(type='real', value=0.)
-            self._randoms_data = positions
-            self._weights_randoms = weights
-            self._size_randoms = 0
-        else:
-            # Append new positions and weights to existing tracked randoms
-            self._randoms_data = np.concatenate([self._randoms_data, positions], axis=0)
-            self._weights_randoms = np.concatenate([self._weights_randoms, weights], axis=0)
+    if getattr(self, 'mesh_randoms', None) is None or replace:
+        self.mesh_randoms = self.pm.create(type='real', value=0.)
+        self._randoms_data = positions.copy()
+        self._weights_randoms = weights.copy()
+        self._size_randoms = len(positions)
+    else:
+        self._randoms_data = np.concatenate([self._randoms_data, positions], axis=0)
+        self._weights_randoms = np.concatenate([self._weights_randoms, weights], axis=0)
+    # You can use kwargs or simply ignore them if they're not needed
+    self._paint(positions, weights=weights, out=self.mesh_randoms)
+    self._size_randoms += self.mpicomm.allreduce(len(positions))
 
-        self._paint(positions, weights=weights, out=self.mesh_randoms)
-        self._size_randoms += self.mpicomm.allreduce(len(positions))
 
 
     def _compute_random_indices(self):
@@ -370,7 +369,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
             if self.has_randoms:
                 # Reset the mesh without losing its allocated array
                 self.mesh_randoms[...] = 0.
-                self.assign_randoms(self._positions_rec_randoms, weights=self._weights_randoms)
+                self.assign_randoms(self._positions_rec_randoms, weights=self._weights_randoms, replace=True)
                 self.mesh_randoms = self._smooth_gaussian(self.mesh_randoms)
 
         self.set_density_contrast(ran_min=self.ran_min, smoothing_radius=self.smoothing_radius)
