@@ -296,7 +296,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
     at each iteration to keep data points within survey boundaries.
     """
 
-    def assign_randoms(self, positions, weights=None):
+    def assign_randoms(self, positions, weights=None, **kwargs):
         """Same as :meth:`assign_data`, but for random objects, while tracking them across function calls."""
 
         if weights is None:
@@ -369,7 +369,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
             # Update randoms: reassign and smooth the randoms mesh
             if self.has_randoms:
                 self.mesh_randoms.value = None
-                self.assign_randoms(self._positions_rec_randoms, weights=self._weights_randoms, position_type='pos',mpiroot=None)
+                self.assign_randoms(self._positions_rec_randoms, weights=self._weights_randoms)
                 self.mesh_randoms = self._smooth_gaussian(self.mesh_randoms)
 
         self.set_density_contrast(ran_min=self.ran_min, smoothing_radius=self.smoothing_radius)
