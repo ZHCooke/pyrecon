@@ -368,7 +368,8 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
 
             # Update randoms: reassign and smooth the randoms mesh
             if self.has_randoms:
-                self.mesh_randoms.value = None
+                # Reset the mesh without losing its allocated array
+                self.mesh_randoms.[...] = 0.
                 self.assign_randoms(self._positions_rec_randoms, weights=self._weights_randoms)
                 self.mesh_randoms = self._smooth_gaussian(self.mesh_randoms)
 
