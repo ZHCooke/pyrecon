@@ -296,6 +296,12 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
     at each iteration to keep data points within survey boundaries.
     """
 
+    @property
+    def has_randoms(self):
+        #Check for randoms possitions instead of the mesh to save memory
+        return hasattr(self, '_positions_randoms')
+
+
     def assign_randoms(self, positions, weights=None, replace=False, **kwargs):
         if weights is None:
 
