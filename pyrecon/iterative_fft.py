@@ -258,75 +258,48 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
     def read_shifts(self, positions, field='disp+rsd'):
         """
         Read displacement at input positions.
-        Note
-        ----
-        Data shifts are read at the reconstructed real-space positions,
-        while random shifts are read at the redshift-space positions, is that consistent?
+        
+        For explicit position arrays this returns the same result as the standard
+        (IFFT) implementation. When the special string 'data' is passed it returns
+        the displacements based on the iterative hybrid internal positions.
+        
         Parameters
         ----------
-        positions : array of shape (N, 3), string
-            Cartesian positions.
-            Pass string 'data' to get the displacements for the input data positions passed to :meth:`assign_data`.
-            Note that in this case, shifts are read at the reconstructed data real-space positions.
-        field : string, default='disp+rsd'
-            Either 'disp' (Zeldovich displacement), 'rsd' (RSD displacement), or 'disp+rsd' (Zeldovich + RSD displacement).
+        positions : array of shape (N, 3) or string 'data'
+            Cartesian positions. Passing 'data' uses the internally updated positions.
+        field : {'disp', 'rsd', 'disp+rsd'}, default 'disp+rsd'
+            The desired component, where:
+            - 'disp' returns the Zeldovich displacement,
+            - 'rsd' returns the redshift-space distortion correction,
+            - 'disp+rsd' returns the sum.
+        
         Returns
         -------
         shifts : array of shape (N, 3)
-            Displacements.
+            The displacement (or total shift) vectors.
         """
         field = field.lower()
         allowed_fields = ['disp', 'rsd', 'disp+rsd']
         if field not in allowed_fields:
             raise ReconstructionError('Unknown field {}. Choices are {}'.format(field, allowed_fields))
 
-        def _read_shifts(positions):
-            shifts = np.empty_like(positions)
-            for iaxis, psi in enumerate(self.mesh_psi):
-                shifts[:, iaxis] = self._readout(psi, positions)
-            return shifts
-
+        # If the special string 'data' is passed, use the internal positions.
         if isinstance(positions, str) and positions == 'data':
-            # _positions_rec_data already wrapped during iteration
-            shifts = _read_shifts(self._positions_rec_data)
+            # Here we compute displacements using the iterative H-IFFT internal positions.
+            shifts = np.empty_like(self._positions_rec_data)
+            for iaxis, psi in enumerate(self.mesh_psi):
+                shifts[:, iaxis] = self._readout(psi, self._positions_rec_data)
             if field == 'disp':
                 return shifts
             rsd = self._positions_data - self._positions_rec_data
             if field == 'rsd':
                 return rsd
-            # field == 'disp+rsd'
-            shifts += rsd
-            return shifts
+            # 'disp+rsd': add the RSD correction computed internally.
+            return shifts + rsd
 
-        if self.wrap: positions = self._wrap(positions)  # wrap here for local los
-        shifts = _read_shifts(positions)  # aleady wrapped
-
-        if field == 'disp':
-            return shifts
-
-        if self.los is None:
-            los = utils.safe_divide(positions, utils.distance(positions)[:, None])
-        else:
-            los = self.los.astype(positions.dtype)
-        rsd = self.f * np.sum(shifts * los, axis=-1)[:, None] * los
-
-        if field == 'rsd':
-            return rsd
-
-        # field == 'disp+rsd'
-        # we follow convention of original algorithm: remove RSD first,
-        # then remove Zeldovich displacement
-        real_positions = positions - rsd
-        diff = real_positions - self.offset
-        if (not self.wrap) and any(self.mpicomm.allgather(np.any((diff < 0) | (diff > self.boxsize - self.cellsize)))):
-            if self.mpicomm.rank == 0:
-                self.log_warning('Some particles are out-of-bounds.')
-        shifts = _read_shifts(real_positions)
-
-        return shifts + rsd
-
-
-
+        # For an explicit positions array, simply use the base implementation.
+        # Hybrid and IFFT match.
+        return super().read_shifts(positions, field=field)
 
 
 
