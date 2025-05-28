@@ -303,11 +303,11 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
 
         if getattr(self, 'mesh_randoms', None) is None or replace:
             self.mesh_randoms = self.pm.create(type='real', value=0.)
-            self._randoms_data = positions.copy()
+            self._positions_randoms = positions.copy()
             self._weights_randoms = weights.copy()
             self._size_randoms = len(positions)
         else:
-            self._randoms_data = np.concatenate([self._randoms_data, positions], axis=0)
+            self._positions_randoms = np.concatenate([self._positions_randoms, positions], axis=0)
             self._weights_randoms = np.concatenate([self._weights_randoms, weights], axis=0)
         # You can use kwargs or simply ignore them if they're not needed
         self._paint(positions, weights=weights, out=self.mesh_randoms)
@@ -321,7 +321,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
         This ensures that the random permutation is calculated once per reconstruction run.
         """
         if self.has_randoms:
-            self._random_indices = np.random.permutation(len(self._randoms_data))
+            self._random_indices = np.random.permutation(len(self._positions_randoms))
 
 
     def run(self, niterations=3):
@@ -339,7 +339,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
 
         if self.has_randoms:
             self.mesh_randoms = self._smooth_gaussian(self.mesh_randoms)
-            self._positions_rec_randoms = self._randoms_data.copy()
+            self._positions_rec_randoms = self._positions_randoms.copy()
             self._compute_random_indices()
 
 
@@ -507,7 +507,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
             shifts = _read_shifts(self._positions_rec_randoms)
             if field == 'disp':
                 return shifts
-            rsd = self._positons_randoms - self._positions_rec_randoms
+            rsd = self._positions_randoms - self._positions_rec_randoms
             if field == 'rsd':
                 return rsd
             # field == 'disp+rsd'
