@@ -416,11 +416,12 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
         if self.has_randoms:
             self.mesh_randoms = self._smooth_gaussian(self.mesh_randoms)
             self._positions_rec_randoms = self._positions_randoms.copy()
-            self._compute_random_indices()
+            #self._compute_random_indices()
 
 
         self._positions_rec_data = self._positions_data.copy()
         for iter in range(niterations):
+            self._compute_random_indices()
             self.mesh_psi = self._iterate(return_psi=iter == niterations - 1)
         del self.mesh_data
         if self.has_randoms:
