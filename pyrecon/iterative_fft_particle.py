@@ -302,63 +302,67 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
         return hasattr(self, '_positions_randoms')
 
 
-    def set_density_contrast_modified(self, ran_min=0.01, smoothing_radius=15., check=False, kw_weights=None):
+    def set_density_contrast(self, ran_min=0.01, smoothing_radius=15., check=False, kw_weights=None):
         """
-        Set the density contrast field :attr:`mesh_delta` from data and randoms with a modified
-        normalization (for shifted randoms) that avoids masking cells entirely.
-        
-        This version subtracts the scaled randoms as before, but instead of masking cells where
-        the random count falls below a threshold, it replaces those values with the threshold.
-        This avoids an excessive suppression of power at small k.
-        
+        Set :math:`\delta` field :attr:`mesh_delta` from data and randoms fields :attr:`mesh_data` and :attr:`mesh_randoms`.
+
+        Note
+        ----
+        This method follows Julian's reconstruction code.
+        :attr:`mesh_data` and :attr:`mesh_randoms` fields are assumed to be smoothed already.
+
         Parameters
         ----------
         ran_min : float, default=0.01
-            Used to define the threshold for low random counts.
-        smoothing_radius : float, default=15.
-            Smoothing scale, as in the original version.
+            :attr:`mesh_randoms` points below this threshold times mean random weights have their density contrast set to 0.
+
+        smoothing_radius : float, default=15
+            Smoothing scale, see :meth:`RealMesh.smooth_gaussian`.
+
         check : bool, default=False
-            If `True`, run tests (printed in logger) to assess whether enough randoms have been used.
-        kw_weights : dict, optional
-            Additional keyword weights.
+            If ``True``, run some tests (printed in logger) to assess whether enough randoms have been used.
         """
         self.ran_min = ran_min
         self.smoothing_radius = smoothing_radius
 
-        # Start with a copy of the smoothed data mesh
         self.mesh_delta = self.mesh_data.copy()
 
         if self.has_randoms:
+
             if check:
                 nnonzero = self.mpicomm.allreduce(sum(np.sum(randoms > 0.) for randoms in self.mesh_randoms))
-                if nnonzero < 2:
-                    raise ValueError("Very few randoms!")
-            
-            # Compute the overall normalizations from the data and randoms
-            sum_data = self.mesh_data.csum()
-            sum_randoms = self.mesh_randoms.csum()
-            alpha = sum_data / sum_randoms
-            
-            # Subtract the weighted random field from the data field
+                if nnonzero < 2: raise ValueError('Very few randoms!')
+
+            sum_data, sum_randoms = self.mesh_data.csum(), self.mesh_randoms.csum()
+            alpha = sum_data * 1. / sum_randoms
+
             for delta, randoms in zip(self.mesh_delta.slabs, self.mesh_randoms.slabs):
                 delta[...] -= alpha * randoms
 
-            # Define a threshold from ran_min as originally done
             threshold = ran_min * sum_randoms / self._size_randoms
-            
-            # Instead of masking cells where randoms are below the threshold,
-            # do a 'safe' division where random counts below threshold are replaced
-            # with the threshold value.
+
             for delta, randoms in zip(self.mesh_delta.slabs, self.mesh_randoms.slabs):
-                # Using np.where ensures that, if the random count is below threshold,
-                # we use threshold in the denominator instead.
-                safe_randoms = np.where(randoms > threshold, randoms, threshold)
-                delta[...] /= (self.bias * alpha * safe_randoms)
-            
+                mask = randoms > threshold
+                delta[mask] /= (self.bias * alpha * randoms[mask])
+                delta[~mask] = 0.
+
+            if check:
+                mean_nran_per_cell = self.mpicomm.allreduce(sum(randoms[randoms > 0] for randoms in self.mesh_randoms))
+                std_nran_per_cell = self.mpicomm.allreduce(sum(randoms[randoms > 0]**2 for randoms in self.mesh_randoms)) - mean_nran_per_cell**2
+                if self.mpicomm.rank == 0:
+                    self.log_info('Mean smoothed random density in non-empty cells is {:.4f} (std = {:.4f}), threshold is (ran_min * mean weight) = {:.4f}.'.format(mean_nran_per_cell, std_nran_per_cell, threshold))
+
+                frac_nonzero_masked = 1. - self.mpicomm.allreduce(sum(np.sum(randoms > 0.) for randoms in self.mesh_randoms)) / nnonzero
+                del mask_nonzero
+                if self.mpicomm.rank == 0:
+                    if frac_nonzero_masked > 0.1:
+                        self.log_warning('Masking a large fraction {:.4f} of non-empty cells. You should probably increase the number of randoms.'.format(frac_nonzero_masked))
+                    else:
+                        self.log_info('Masking a fraction {:.4f} of non-empty cells.'.format(frac_nonzero_masked))
             if kw_weights:
                 self._set_optimal_weights(**{'alpha': alpha, **kw_weights})
+
         else:
-            # Fallback for a case with no randoms (unchanged from original)
             self.mesh_delta /= (self.mesh_delta.cmean() * self.bias)
             self.mesh_delta -= 1. / self.bias
 
