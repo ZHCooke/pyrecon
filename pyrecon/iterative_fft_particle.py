@@ -626,6 +626,7 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
 
 
 
+
     @format_positions_wrapper(return_input_type=True)
     def read_shifted_positions(self, positions, field='disp+rsd'):
         """
