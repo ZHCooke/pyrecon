@@ -540,21 +540,18 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
     def read_shifts(self, positions, field='disp+rsd'):
         """
         Read displacement at input positions.
-        
         Note
         ----
-        For data positions the shifts are read at the reconstructed real-space positions,
-        while for randoms positions we now apply a similar RSD correction procedure as for the data.
-
+        Data shifts are read at the reconstructed real-space positions,
+        while random shifts are read at the redshift-space positions, is that consistent?
         Parameters
         ----------
-        positions : array of shape (N, 3) or string
+        positions : array of shape (N, 3), string
             Cartesian positions.
-            Pass 'data' to get the displacements for data positions,
-            or 'randoms' to get the displacements for random positions.
+            Pass string 'data' to get the displacements for the input data positions passed to :meth:`assign_data`.
+            Note that in this case, shifts are read at the reconstructed data real-space positions.
         field : string, default='disp+rsd'
-            Either 'disp' (Zeldovich displacement), 'rsd' (RSD displacement), or 'disp+rsd' (combined).
-
+            Either 'disp' (Zeldovich displacement), 'rsd' (RSD displacement), or 'disp+rsd' (Zeldovich + RSD displacement).
         Returns
         -------
         shifts : array of shape (N, 3)
@@ -571,60 +568,38 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
                 shifts[:, iaxis] = self._readout(psi, positions)
             return shifts
 
-        # --- Branch for data ---
         if isinstance(positions, str) and positions == 'data':
             # _positions_rec_data already wrapped during iteration
             shifts = _read_shifts(self._positions_rec_data)
             if field == 'disp':
                 return shifts
-            if self.los is None:
-                los = utils.safe_divide(self._positions_rec_data, utils.distance(self._positions_rec_data)[:, None])
-            else:
-                los = self.los.astype(self._positions_rec_data.dtype)
-            rsd = self.f * np.sum(shifts * los, axis=-1)[:, None] * los
+            rsd = self._positions_data - self._positions_rec_data
             if field == 'rsd':
                 return rsd
             # field == 'disp+rsd'
-            real_positions = self._positions_rec_data - rsd
-            diff = real_positions - self.offset
-            if (not self.wrap) and any(self.mpicomm.allgather(np.any((diff < 0) | (diff > self.boxsize - self.cellsize)))):
-                if self.mpicomm.rank == 0:
-                    self.log_warning('Some particles are out-of-bounds.')
-            shifts = _read_shifts(real_positions)
-            return shifts + rsd
+            shifts += rsd
+            return shifts
 
-        # --- Modified branch for randoms ---
+
+        # added branch for dealing with the randoms
         if isinstance(positions, str) and positions == 'randoms':
             if not self.has_randoms:
                 raise ReconstructionError("Cannot pass 'randoms' to read_shifts if no randoms provided")
-            # Start with the iterative reconstructed random positions.
-            pos_rec = self._positions_rec_randoms
-            pos_raw = self._positions_randoms  # for possible use in alternative approaches
-            if self.wrap:
-                pos_rec = self._wrap(pos_rec)
-            shifts = _read_shifts(pos_rec)
+            shifts = _read_shifts(self._positions_rec_randoms)
             if field == 'disp':
                 return shifts
-            if self.los is None:
-                los = utils.safe_divide(pos_rec, utils.distance(pos_rec)[:, None])
-            else:
-                los = self.los.astype(pos_rec.dtype)
-            rsd = self.f * np.sum(shifts * los, axis=-1)[:, None] * los
+            rsd = self._positions_randoms - self._positions_rec_randoms
             if field == 'rsd':
                 return rsd
-            # For 'disp+rsd', remove the estimated RSD contribution, re-read the displacements, then add RSD back.
-            real_positions = pos_rec - rsd
-            diff = real_positions - self.offset
-            if (not self.wrap) and any(self.mpicomm.allgather(np.any((diff < 0) | (diff > self.boxsize - self.cellsize)))):
-                if self.mpicomm.rank == 0:
-                    self.log_warning('Some randoms are out-of-bounds.')
-            shifts = _read_shifts(real_positions)
-            return shifts + rsd
+            # field == 'disp+rsd'
+            shifts += rsd
+            return shifts
 
-        # --- Fallback for arbitrary positions (not a string) ---
-        if self.wrap:
-            positions = self._wrap(positions)
-        shifts = _read_shifts(positions)
+
+
+        if self.wrap: positions = self._wrap(positions)  # wrap here for local los
+        shifts = _read_shifts(positions)  # aleady wrapped
+
         if field == 'disp':
             return shifts
 
@@ -637,15 +612,17 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
         if field == 'rsd':
             return rsd
 
-        # For 'disp+rsd': remove RSD, then re-read the shifts
+        # field == 'disp+rsd'
+        # we follow convention of original algorithm: remove RSD first,
+        # then remove Zeldovich displacement
         real_positions = positions - rsd
         diff = real_positions - self.offset
         if (not self.wrap) and any(self.mpicomm.allgather(np.any((diff < 0) | (diff > self.boxsize - self.cellsize)))):
             if self.mpicomm.rank == 0:
                 self.log_warning('Some particles are out-of-bounds.')
         shifts = _read_shifts(real_positions)
-        return shifts + rsd
 
+        return shifts + rsd
 
 
 
