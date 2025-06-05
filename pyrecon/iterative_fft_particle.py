@@ -526,10 +526,12 @@ class ShiftedRandomsIterativeParticleFFTReconstruction(OriginalIterativeFFTParti
         # The iterative procedure then uses the new positions as if they'd been read in from the start
 
         # -- updated positons for the randoms -- #
-        self._positions_rec_data -= self.f * np.sum(shifts * los, axis=-1)[:, None] * los
+        #self._positions_rec_data -= self.f * np.sum(shifts * los, axis=-1)[:, None] * los
+        self._positions_rec_data = self._positions_data - self.f * np.sum(shifts * los, axis=-1)[:, None] * los
 
         if self.has_randoms:
-            self._positions_rec_randoms -= self.f * np.sum(shifts_randoms * los_randoms, axis=-1)[:, None] * los_randoms
+            #self._positions_rec_randoms -= self.f * np.sum(shifts_randoms * los_randoms, axis=-1)[:, None] * los_randoms
+            self._positions_rec_randoms = self._positions_randoms - self.f * np.sum(shifts_randoms * los_randoms, axis=-1)[:, None] * los_randoms
 
         self._iter += 1
         if return_psi:
