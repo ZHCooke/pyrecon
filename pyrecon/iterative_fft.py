@@ -297,9 +297,21 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             # 'disp+rsd': add the RSD correction computed internally.
             return shifts + rsd
 
-        # For an explicit positions array, simply use the base implementation.
-        # Hybrid and IFFT match.
-        return super().read_shifts(positions, field=field)
+        # To sample
+        # Build an (N,3) array of Zeldovich displacements at `positions`
+        disp = np.empty_like(positions)
+        for iaxis, psi in enumerate(self.mesh_psi):
+            # interpolate the axis‐i displacement onto every position
+            disp[:, iaxis] = self._readout(psi, positions)
+ 
+        if field == 'disp':
+            return disp
+        elif field == 'rsd':
+            # There isn’t really an RSD‐only component at arbitrary points,
+            # but you could zero it out or raise an error:
+            return np.zeros_like(disp)
+        else:  # 'disp+rsd'
+            return disp
 
 
 
