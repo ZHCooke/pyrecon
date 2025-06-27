@@ -186,7 +186,7 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
                     # remove RSD part
                     self.mesh_delta_real -= factor * disp_deriv
 
-        # =================================================
+        # 
         # Initialize an array to store displacement shifts for each particle in the reconstructed data space.
         shifts = np.empty_like(self._positions_rec_data)
 
@@ -312,6 +312,8 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             return np.zeros_like(disp)
         else:  # 'disp+rsd'
             return disp
+
+
 
 
 
