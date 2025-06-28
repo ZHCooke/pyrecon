@@ -259,25 +259,31 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         """
         Read displacement at input positions.
 
-        For 'data' this samples ψ on the internal, iteratively updated positions
-        and adds back the RSD correction to give you the full disp+rsd.
+        For 'data', this returns:
+            - 'disp': ψ at _positions_rec_data
+            - 'rsd' : _positions_data − _positions_rec_data
+            - 'disp+rsd': ψ at _positions_data + (_positions_data − _positions_rec_data)
         """
         field = field.lower()
-        allowed = ('disp', 'rsd', 'disp+rsd')
-        if field not in allowed:
-            raise ReconstructionError(
-                f"Unknown field {field}. Choices are {allowed}"
-            )
+        allowed_fields = ['disp', 'rsd', 'disp+rsd']
+        if field not in allowed_fields:
+            raise ReconstructionError(f"Unknown field {field}. Choices are {allowed_fields}")
 
-        # Handle the special "data" keyword
+        # Special handling for keyword 'data'
         if isinstance(positions, str) and positions == 'data':
-            # 1) Sample ψ at the _positions_rec_data_ (the hybrid-shifted pts)
-            disp = np.empty_like(self._positions_rec_data)
-            for iaxis, psi in enumerate(self.mesh_psi):
-                disp[:, iaxis] = self._readout(psi, self._positions_rec_data)
+            if field == 'disp+rsd':
+                # Sample ψ at original positions to avoid hybrid cancellation
+                sample_positions = self._positions_data
+            else:
+                # For 'disp' and 'rsd', sample at internal positions
+                sample_positions = self._positions_rec_data
 
-            # 2) Compute the RSD correction that was applied to go from
-            #    original → rec_data positions
+            # Compute Zeldovich displacement
+            disp = np.empty_like(sample_positions)
+            for iaxis, psi in enumerate(self.mesh_psi):
+                disp[:, iaxis] = self._readout(psi, sample_positions)
+
+            # Compute RSD component
             rsd = self._positions_data - self._positions_rec_data
 
             if field == 'disp':
@@ -287,8 +293,7 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             else:  # 'disp+rsd'
                 return disp + rsd
 
-        # Otherwise fall back to sampling any arbitrary positions array
-        # (no RSD component except zeros since we don't know their original)
+        # If passed an explicit array of positions
         disp = np.empty_like(positions)
         for iaxis, psi in enumerate(self.mesh_psi):
             disp[:, iaxis] = self._readout(psi, positions)
@@ -296,13 +301,9 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         if field == 'disp':
             return disp
         elif field == 'rsd':
-            return np.zeros_like(disp)
+            return np.zeros_like(disp)  # can't infer RSD w/o internal position reference
         else:  # 'disp+rsd'
             return disp
-
-
-
-
 
 
 
