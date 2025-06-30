@@ -258,52 +258,49 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
     def read_shifts(self, positions, field='disp+rsd'):
         """
         Read displacement at input positions.
-
-        For 'data', this returns:
-            - 'disp': ψ at _positions_rec_data
-            - 'rsd' : _positions_data − _positions_rec_data
-            - 'disp+rsd': ψ at _positions_data + (_positions_data − _positions_rec_data)
+        
+        For explicit position arrays this returns the same result as the standard
+        (IFFT) implementation. When the special string 'data' is passed it returns
+        the displacements based on the iterative hybrid internal positions.
+        
+        Parameters
+        ----------
+        positions : array of shape (N, 3) or string 'data'
+            Cartesian positions. Passing 'data' uses the internally updated positions.
+        field : {'disp', 'rsd', 'disp+rsd'}, default 'disp+rsd'
+            The desired component, where:
+            - 'disp' returns the Zeldovich displacement,
+            - 'rsd' returns the redshift-space distortion correction,
+            - 'disp+rsd' returns the sum.
+        
+        Returns
+        -------
+        shifts : array of shape (N, 3)
+            The displacement (or total shift) vectors.
         """
         field = field.lower()
         allowed_fields = ['disp', 'rsd', 'disp+rsd']
         if field not in allowed_fields:
-            raise ReconstructionError(f"Unknown field {field}. Choices are {allowed_fields}")
+            raise ReconstructionError('Unknown field {}. Choices are {}'.format(field, allowed_fields))
 
-        # Special handling for keyword 'data'
+        # If the special string 'data' is passed, use the internal positions.
         if isinstance(positions, str) and positions == 'data':
-            if field == 'disp+rsd':
-                # Sample ψ at original positions to avoid hybrid cancellation
-                sample_positions = self._positions_data
-            else:
-                # For 'disp' and 'rsd', sample at internal positions
-                sample_positions = self._positions_rec_data
-
-            # Compute Zeldovich displacement
-            disp = np.empty_like(sample_positions)
+            # Here we compute displacements using the iterative H-IFFT internal positions.
+            shifts = np.empty_like(self._positions_rec_data)
             for iaxis, psi in enumerate(self.mesh_psi):
-                disp[:, iaxis] = self._readout(psi, sample_positions)
-
-            # Compute RSD component
-            rsd = self._positions_data - self._positions_rec_data
-
+                shifts[:, iaxis] = self._readout(psi, self._positions_rec_data)
             if field == 'disp':
-                return disp
-            elif field == 'rsd':
+                return shifts
+            rsd = self._positions_data - self._positions_rec_data
+            if field == 'rsd':
                 return rsd
-            else:  # 'disp+rsd'
-                return disp + rsd
+            # 'disp+rsd': add the RSD correction computed internally.
+            return shifts + rsd
 
-        # If passed an explicit array of positions
-        disp = np.empty_like(positions)
-        for iaxis, psi in enumerate(self.mesh_psi):
-            disp[:, iaxis] = self._readout(psi, positions)
+        # For an explicit positions array, simply use the base implementation.
+        # Hybrid and IFFT match.
+        return super().read_shifts(positions, field=field)
 
-        if field == 'disp':
-            return disp
-        elif field == 'rsd':
-            return np.zeros_like(disp)  # can't infer RSD w/o internal position reference
-        else:  # 'disp+rsd'
-            return disp
 
 
 
