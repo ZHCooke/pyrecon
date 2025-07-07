@@ -122,21 +122,31 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
 
     def run(self, niterations=3):
         """
-        Run reconstruction, i.e. compute Zeldovich displacement fields :attr:`mesh_psi`.
-        Parameters
-        ----------
-        niterations : int, default=3
-            Number of iterations.
+        Run hybrid IFFT reconstruction, updating particle positions each iteration.
+        Store the final-iteration ψ in self._last_iter_psis, but leave
+        self.mesh_psi to be filled by _compute_psi().
         """
         self._iter = 0
         self.mesh_delta_real = self.mesh_delta.copy()
         self._positions_rec_data = self._positions_data.copy()
 
-        for iter in range(niterations):
-            self._iterate(return_psi=(iter == niterations - 1))
+        # new place to hold the ψ from the final iteration
+        self._last_iter_psis = None
+
+        for i in range(niterations):
+            psis = self._iterate()
+            if i == niterations - 1:
+                # capture ψ for debugging, diagnostics, etc.
+                self._last_iter_psis = psis
+
+        # clean up intermediate fields
         del self.mesh_delta
+
+        # original pattern: compute ψ fresh from the final mesh_delta_real
         self.mesh_psi = self._compute_psi()
+
         del self.mesh_delta_real
+
 
     def _iterate(self, return_psi=False):
         if self.mpicomm.rank == 0:
@@ -150,8 +160,8 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             utils.safe_divide(slab, sum(kk**2 for kk in kslab), inplace=True)
 
         self.mesh_delta_real = self.mesh_delta.copy()
-        # Now compute \beta \nabla \cdot (\nabla \phi_{\mathrm{est},n} \cdot \hat{r}) \hat{r}
-        # In the plane-parallel case (self.los is a given vector), this is simply \beta IFFT((\hat{k} \cdot \hat{\eta})^{2} \delta(k))
+
+        # apply RSD removal in Fourier space
         if self.los is not None:
             # global los
             disp_deriv_k = delta_k.copy()
@@ -165,9 +175,7 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             self.mesh_delta_real -= factor * disp_deriv_k.c2r()
             del disp_deriv_k
         else:
-            # In the local los case, \beta \nabla \cdot (\nabla \phi_{\mathrm{est},n} \cdot \hat{r}) \hat{r} is:
-            # \beta \partial_{i} \partial_{j} \phi_{\mathrm{est},n} \hat{r}_{j} \hat{r}_{i}
-            # i.e. \beta IFFT(k_{i} k_{j} \delta(k) / k^{2}) \hat{r}_{i} \hat{r}_{j} => 6 FFTs
+            # local LOS: 6 FFTs for ∂i∂j ϕ ˆrᵢˆrⱼ
             for iaxis in range(delta_k.ndim):
                 for jaxis in range(iaxis, delta_k.ndim):
                     disp_deriv = delta_k.copy()
@@ -240,10 +248,8 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         # The correction term scales the computed shifts along the los by a factor `self.f`, refining reconstructed positions.
         self._positions_rec_data = self._positions_data - self.f * np.sum(shifts * los, axis=-1)[:, None] * los
 
-        #if return_psi:
-            #return psis
-
         self._iter += 1
+        return psis
 
         
 
