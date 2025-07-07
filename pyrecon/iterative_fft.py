@@ -120,43 +120,23 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
     _f_z = True
     _bias_z = True
 
-    def run(self, niterations=3, return_all_psis=False):
+    def run(self, niterations=3):
         """
-        Run reconstruction, i.e. compute Zeldovich displacement fields mesh_psi.
-        
+        Run reconstruction, i.e. compute Zeldovich displacement fields :attr:`mesh_psi`.
         Parameters
         ----------
-        niterations : int
+        niterations : int, default=3
             Number of iterations.
-        return_all_psis : bool
-            If True, return a list of the psi fields from each iteration.
         """
         self._iter = 0
-        # start from redshift‐space delta
         self.mesh_delta_real = self.mesh_delta.copy()
         self._positions_rec_data = self._positions_data.copy()
 
-        all_psis = []
-        for it in range(niterations):
-            # on every iteration ask for psi
-            psis = self._iterate(return_psi=True)
-            # _iterate always returns psis when return_psi=True
-            all_psis.append(psis)
-
-        # clean up and compute the final mesh_psi
+        for iter in range(niterations):
+            self._iterate(return_psi=(iter == niterations - 1))
         del self.mesh_delta
         self.mesh_psi = self._compute_psi()
         del self.mesh_delta_real
-
-        # store the very last iteration’s psi for quick access
-        self._last_iteration_psis = all_psis[-1]
-
-        if return_all_psis:
-            # shape: (niterations, 3), each entry is a list [ψ_x,ψ_y,ψ_z]
-            return all_psis
-        # default behavior: return the standard mesh_psi
-        return self.mesh_psi
-        
 
     def _iterate(self, return_psi=False):
         if self.mpicomm.rank == 0:
