@@ -240,8 +240,8 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         # The correction term scales the computed shifts along the los by a factor `self.f`, refining reconstructed positions.
         self._positions_rec_data = self._positions_data - self.f * np.sum(shifts * los, axis=-1)[:, None] * los
 
-        if return_psi:
-            return psis
+        #if return_psi:
+            #return psis
 
         self._iter += 1
 
