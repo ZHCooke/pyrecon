@@ -186,7 +186,9 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
                     # remove RSD part
                     self.mesh_delta_real -= factor * disp_deriv
 
-        # 
+        # Refresh Fourier density so shifts use the latest real-space estimate
+        delta_k = self.mesh_delta_real.r2c() 
+
         # Initialize an array to store displacement shifts for each particle in the reconstructed data space.
         shifts = np.empty_like(self._positions_rec_data)
 
@@ -218,7 +220,7 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             # If requested, store the displacement field (psi) for further analysis.
             if return_psi:
                 psis.append(psi)
-
+                
             del psi
 
         # If `self.los` is not explicitly set, compute a normalized los vector from the particle positions.
@@ -238,7 +240,12 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         # The correction term scales the computed shifts along the los by a factor `self.f`, refining reconstructed positions.
         self._positions_rec_data = self._positions_data - self.f * np.sum(shifts * los, axis=-1)[:, None] * los
 
+        if return_psi:
+            return psis
+
         self._iter += 1
+
+        
 
     def _compute_psi(self):
         # Compute Zeldovich displacements given reconstructed real space density
@@ -294,7 +301,7 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             rsd = self._positions_data - self._positions_rec_data
             if field == 'rsd':
                 return rsd
-            # 'disp+rsd': add the RSD correction computed internally.
+            # 'disp+rsd': add the RSD correction computed iznternally.
             return shifts + rsd
 
         # For an explicit positions array, simply use the base implementation.
