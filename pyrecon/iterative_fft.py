@@ -122,31 +122,41 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
 
     def run(self, niterations=3):
         """
-        Run hybrid IFFT reconstruction, updating particle positions each iteration.
-        Store the final-iteration ψ in self._last_iter_psis, but leave
-        self.mesh_psi to be filled by _compute_psi().
+        Run hybrid IFFT reconstruction, updating particle positions each iteration,
+        storing every iteration’s ψ in a list, and returning it.
+
+        Parameters
+        ----------
+        niterations : int, default=3
+            Number of iterations to perform.
+
+        Returns
+        -------
+        iter_psis : list of list of 3D arrays
+            iter_psis[i] is the [ψ_x, ψ_y, ψ_z] fields from iteration i.
         """
-        self._iter = 0
-        self.mesh_delta_real = self.mesh_delta.copy()
+        # reset and initialize
+        self._iter               = 0
+        self.mesh_delta_real     = self.mesh_delta.copy()
         self._positions_rec_data = self._positions_data.copy()
 
-        # new place to hold the ψ from the final iteration
-        self._last_iter_psis = None
+        # collect ψ from each iteration
+        iter_psis = []
 
         for i in range(niterations):
+            # run one iteration (must return psis)
             psis = self._iterate()
-            if i == niterations - 1:
-                # capture ψ for debugging, diagnostics, etc.
-                self._last_iter_psis = psis
+            iter_psis.append(psis)
 
-        # clean up intermediate fields
+        # cleanup intermediate density fields
         del self.mesh_delta
 
-        # original pattern: compute ψ fresh from the final mesh_delta_real
+        # compute the “official” mesh_psi as before
         self.mesh_psi = self._compute_psi()
-
         del self.mesh_delta_real
 
+        # return the per-iteration ψ lists
+        return iter_psis
 
     def _iterate(self, return_psi=False):
         if self.mpicomm.rank == 0:
