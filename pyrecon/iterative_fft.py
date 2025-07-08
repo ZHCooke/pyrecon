@@ -217,8 +217,9 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         for iaxis in range(delta_k.ndim):
 
             # No need to compute psi on axis where los is 0
-            if not return_psi and self.los is not None and self.los[iaxis] == 0:
+            if self.los is not None and self.los[iaxis] == 0:
                 shifts[:, iaxis] = 0.
+                psis.append(np.zeros_like(self.mesh_delta_real.value))
                 continue
 
             # Create a copy of the Fourier-space density field `delta_k` to modify and extract displacement components.
