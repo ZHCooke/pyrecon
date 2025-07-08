@@ -158,7 +158,7 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         # return the per-iteration ψ lists
         return iter_psis
 
-    def _iterate(self, return_psi=False):
+    def _iterate(self):
         if self.mpicomm.rank == 0:
             self.log_info('Running iteration {:d}.'.format(self._iter))
         # This is an implementation of eq. 22 and 24 in https://arxiv.org/pdf/1504.02591.pdf
@@ -235,9 +235,8 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             # This interpolates the computed displacement field to find the displacements at the actual particle locations.
             shifts[:, iaxis] = self._readout(psi, self._positions_rec_data)
 
-            # If requested, store the displacement field (psi) for further analysis.
-            if return_psi:
-                psis.append(psi)
+           
+            psis.append(psi)
                 
             del psi
 
