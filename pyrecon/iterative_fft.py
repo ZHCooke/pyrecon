@@ -253,30 +253,25 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             shifts -= self.beta / (1 + self.beta) * np.sum(shifts * los, axis=-1)[:, None] * los
 
         # ====================================================
-        # DEBUG output
-        if self.debug:
-            # per‐axis shift stats
-            for ax in range(shifts.shape[1]):
-                arr = shifts[:, ax]
-                self.log_debug(
-                    f"[iter {self._iter}] shift axis {ax}: "
-                    f"min={arr.min():.3e}, max={arr.max():.3e}, "
-                    f"std={arr.std():.3e}"
-                )
-
-            # dot‐product stats
-            dot = np.sum(shifts * los, axis=-1)
+        # DEBUG output (no guard needed)
+        for ax in range(shifts.shape[1]):
+            arr = shifts[:, ax]
             self.log_debug(
-                f"[iter {self._iter}] dot(shifts, los): "
-                f"min={dot.min():.3e}, max={dot.max():.3e}, std={dot.std():.3e}"
+                f"[iter {self._iter}] shift axis {ax}: "
+                f"min={arr.min():.3e}, max={arr.max():.3e}, std={arr.std():.3e}"
             )
 
-            # LOS info
-            if los.ndim == 1:
-                self.log_debug(f"[iter {self._iter}] global los = {los}")
-            else:
-                sample = los[:5]
-                self.log_debug(f"[iter {self._iter}] sample los[0:5] =\n{sample}")
+        dot = np.sum(shifts * los, axis=-1)
+        self.log_debug(
+            f"[iter {self._iter}] dot(shifts, los): "
+            f"min={dot.min():.3e}, max={dot.max():.3e}, std={dot.std():.3e}"
+        )
+
+        if los.ndim == 1:
+            self.log_debug(f"[iter {self._iter}] global los = {los}")
+        else:
+            sample = los[:5]
+            self.log_debug(f"[iter {self._iter}] sample los[0:5] =\n{sample}")
         # ====================================================
 
         # **New Reconstruction Step**
