@@ -205,8 +205,8 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
                     self.mesh_delta_real -= factor * disp_deriv
 
         # Refresh Fourier density so shifts use the latest real-space estimate
-        delta_k = self.mesh_delta_real.copy()   
-        delta_k = delta_k.r2c()                 
+        #delta_k = self.mesh_delta_real.copy()   
+        #delta_k = delta_k.r2c()                 
 
 
         # Initialize an array to store displacement shifts for each particle in the reconstructed data space.
