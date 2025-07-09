@@ -230,7 +230,8 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             # Apply Fourier-space operations to extract displacements along the current axis.
             for kslab, islab, slab in zip(psi.slabs.x, psi.slabs.i, psi.slabs):
                 mask = islab[iaxis] != self.nmesh[iaxis] // 2  
-                slab[...] *= 1j * kslab[iaxis] * mask  
+                #slab[...] *= 1j * kslab[iaxis] * mask
+                slab[...] *= 1j * utils.safe_divide(kslab[iaxis], sum(kk**2 for kk in kslab)) * mask  
 
             psi = psi.c2r()
 
@@ -255,7 +256,7 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             shifts -= self.beta / (1 + self.beta) * np.sum(shifts * los, axis=-1)[:, None] * los
 
         # ====================================================
-        # DEBUG output (no guard needed)
+        # DEBUG output 
         for ax in range(shifts.shape[1]):
             arr = shifts[:, ax]
             self.log_debug(
