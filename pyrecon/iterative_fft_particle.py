@@ -152,7 +152,8 @@ class OriginalIterativeFFTParticleReconstruction(BaseReconstruction):
             psi = delta_k.copy()
             for kslab, islab, slab in zip(psi.slabs.x, psi.slabs.i, psi.slabs):
                 mask = islab[iaxis] != self.nmesh[iaxis] // 2
-                slab[...] *= 1j * kslab[iaxis] * mask
+                #slab[...] *= 1j * kslab[iaxis] * mask
+                slab[...] *= 1j * utils.safe_divide(kslab[iaxis], sum(kk**2 for kk in kslab)) * mask
 
             psi = psi.c2r()
             # Reading shifts at reconstructed data real-space positions
