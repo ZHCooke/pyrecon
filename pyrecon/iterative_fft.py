@@ -331,19 +331,39 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         if field not in allowed_fields:
             raise ReconstructionError('Unknown field {}. Choices are {}'.format(field, allowed_fields))
 
-        # If the special string 'data' is passed, use the internal positions.
+        # Determine the positions at which to read the displacement field
+        read_positions = positions
         if isinstance(positions, str) and positions == 'data':
-            # Here we compute displacements using the iterative H-IFFT internal positions.
-            shifts = np.empty_like(self._positions_rec_data)
-            for iaxis, psi in enumerate(self.mesh_psi):
-                shifts[:, iaxis] = self._readout(psi, self._positions_rec_data)
-            if field == 'disp':
-                return shifts
-            rsd = self._positions_data - self._positions_rec_data
-            if field == 'rsd':
-                return rsd
-            # 'disp+rsd': add the RSD correction computed iznternally.
-            return shifts + rsd
+            # For 'data', use the final iteratively-updated positions
+            read_positions = self._positions_rec_data
+
+        # Step 1: Calculate the final Zeldovich displacement (psi)
+        disp = np.empty_like(read_positions)
+        for iaxis, psi in enumerate(self.mesh_psi):
+            disp[:, iaxis] = self._readout(psi, read_positions)
+
+        if field == 'disp':
+            return disp
+
+        # Step 2: Calculate the RSD component using the FINAL Zeldovich displacement
+        # This is the crucial correction
+        if self.los is None:
+            # Get the original positions if 'data' was passed
+            if isinstance(positions, str) and positions == 'data':
+                start_positions = self._positions_data
+            else:
+                start_positions = positions
+            los = utils.safe_divide(start_positions, utils.distance(start_positions)[:, None])
+        else:
+            los = self.los
+
+        rsd = self.f * np.sum(disp * los, axis=-1)[:, None] * los
+
+        if field == 'rsd':
+            return rsd
+
+        # Step 3: Return the consistent sum for 'disp+rsd'
+        return disp + rsd
 
         # For an explicit positions array, simply use the base implementation.
         # Hybrid and IFFT match.
