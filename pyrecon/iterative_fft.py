@@ -111,16 +111,13 @@ class IterativeFFTReconstruction(BaseReconstruction):
             del psi
         return psis
     
-class HybridIFFTReconstruction(IterativeFFTReconstruction):
+class HybridIterativeFFTReconstruction(IterativeFFTReconstruction):
     """
     Variation of the field-level iterative FFT reconstruction algorithm of 
     Burden et al. 2015 (https://arxiv.org/abs/1504.02591) implemented in 
     :class:`IterativeFFTReconstruction` that also shifts the galaxy positions 
     to remove RSD in each iterative step
     """
-    _compressed = True
-    _f_z = True
-    _bias_z = True
 
     def run(self, niterations=3):
         """
@@ -235,8 +232,6 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         if return_psi:
             return psis
 
-        
-
     def _compute_psi(self):
         # Compute Zeldovich displacements given reconstructed real space density
         delta_k = self.mesh_delta_real.r2c()
@@ -249,7 +244,6 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
             psis.append(psi.c2r())
             del psi
         return psis
-
 
     @format_positions_wrapper(return_input_type=False)
     def read_shifts(self, positions, field='disp+rsd'):
@@ -334,7 +328,6 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
 
         # return shifts + rsd
 
-
     @format_positions_wrapper(return_input_type=True)
     def read_shifted_positions(self, positions, field='disp+rsd'):
         """
@@ -362,8 +355,6 @@ class HybridIFFTReconstruction(IterativeFFTReconstruction):
         positions = positions - shifts
         if self.wrap: positions = self._wrap(positions)
         return positions
-
-
 
 
 
